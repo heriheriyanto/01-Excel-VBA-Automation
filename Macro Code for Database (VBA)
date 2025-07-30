@@ -1,0 +1,133 @@
+Sub ListAllDatabases()
+    Dim conn As Object
+    Dim rs As Object
+    Dim connectionString As String
+    Dim i As Integer
+
+    ' Connect to master database on the server
+    connectionString = "Provider=SQLOLEDB;" & _
+                       "Data Source=172.17.155.8;" & _
+                       "Initial Catalog=master;" & _
+                       "User ID=tpcsread;" & _
+                       "Password=tpcsread;"
+                       
+    Set conn = CreateObject("ADODB.Connection")
+    conn.Open connectionString
+    
+    ' Query to get all database names
+    Set rs = conn.Execute("SELECT name FROM sys.databases ORDER BY name")
+    
+    ' Output to Sheet1, clear first
+    Sheets("dbList").Cells.Clear
+    Sheets("dbList").Cells(1, 1).Value = "Database Name"
+    
+    i = 2
+    Do While Not rs.EOF
+        Sheets("dbList").Cells(i, 1).Value = rs.Fields("name").Value
+        rs.MoveNext
+        i = i + 1
+    Loop
+    
+    MsgBox "All databases listed in dbList."
+    
+    rs.Close
+    conn.Close
+    Set rs = Nothing
+    Set conn = Nothing
+End Sub
+
+Sub ListAllTables()
+    Dim conn As Object
+    Dim rs As Object
+    Dim i As Integer
+    Dim ws As Worksheet
+
+    Set ws = ThisWorkbook.Sheets("tableList")
+    ws.Cells.Clear
+
+    Dim connectionString As String
+    connectionString = "Provider=SQLOLEDB;" & _
+                       "Data Source=172.17.155.8;" & _
+                       "Initial Catalog=TPCS-MIERUKA_MM;" & _
+                       "User ID=tpcsread;" & _
+                       "Password=tpcsread;"
+                       
+    Set conn = CreateObject("ADODB.Connection")
+    conn.Open connectionString
+    
+    Set rs = conn.OpenSchema(20) ' adSchemaTables
+    
+    ws.Cells(1, 1).Value = "Table Name"
+    i = 2
+    
+    Do While Not rs.EOF
+        If rs.Fields("TABLE_TYPE").Value = "TABLE" Then
+            ' Optional: Filter by schema
+            If rs.Fields("TABLE_SCHEMA").Value = "dbo" Then
+                ws.Cells(i, 1).Value = rs.Fields("TABLE_NAME").Value
+                i = i + 1
+            End If
+        End If
+        rs.MoveNext
+    Loop
+    
+    If i = 2 Then
+        MsgBox "No tables found or insufficient permissions."
+    Else
+        MsgBox "Tables listed in tableList."
+    End If
+    
+    rs.Close
+    conn.Close
+    Set rs = Nothing
+    Set conn = Nothing
+End Sub
+
+Sub ListTableColumns()
+    Dim conn As Object
+    Dim rs As Object
+    Dim connectionString As String
+    Dim ws As Worksheet
+    Dim i As Integer
+    Dim tableName As String
+    
+    tableName = InputBox("Silahkan input nama table :", "Cek Kolom Tabel")
+    
+    connectionString = "Provider=SQLOLEDB;" & _
+                       "Data Source=172.17.155.8;" & _
+                       "Initial Catalog=TPCS-MIERUKA_MM;" & _
+                       "User ID=tpcsread;" & _
+                       "Password=tpcsread;"
+    
+    Set conn = CreateObject("ADODB.Connection")
+    conn.Open connectionString
+    
+    Dim sql As String
+    sql = "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, CHARACTER_MAXIMUM_LENGTH " & _
+          "FROM INFORMATION_SCHEMA.COLUMNS " & _
+          "WHERE TABLE_NAME = '" & tableName & "' " & _
+          "ORDER BY ORDINAL_POSITION"
+    
+    Set rs = conn.Execute(sql)
+    
+    Set ws = ThisWorkbook.Sheets("tableContent")
+    ws.Cells.Clear
+    ws.Range("A1:D1").Value = Array("Column Name", "Data Type", "Is Nullable", "Max Length")
+    
+    i = 2
+    Do While Not rs.EOF
+        ws.Cells(i, 1).Value = rs.Fields("COLUMN_NAME").Value
+        ws.Cells(i, 2).Value = rs.Fields("DATA_TYPE").Value
+        ws.Cells(i, 3).Value = rs.Fields("IS_NULLABLE").Value
+        ws.Cells(i, 4).Value = rs.Fields("CHARACTER_MAXIMUM_LENGTH").Value
+        rs.MoveNext
+        i = i + 1
+    Loop
+    
+    MsgBox "Columns info listed in Sheet tableContent."
+    
+    rs.Close
+    conn.Close
+    Set rs = Nothing
+    Set conn = Nothing
+End Sub
